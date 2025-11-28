@@ -1,3 +1,41 @@
+# -*- coding: utf-8 -*-
+"""
+Interactive Water Mask Creation Tool
+====================================
+Creates and refines water masks for lake images through automatic detection
+and manual editing. Designed for timelapse camera images with lake water bodies.
+
+Key functionality:
+- Automatic water detection using color (HSV), brightness, and edge analysis
+- Interactive mask refinement with brush tools
+- Real-time preview with mask overlay (pink) and result view
+- Processes single images or batches of camera images
+- Saves masks with camera-specific naming convention
+
+Controls (interactive mode):
+- Left click + drag: Add/remove mask areas
+- Right click: Toggle between add/remove modes
+- Arrow up/down: Adjust brush size
+- SPACE: Toggle between overlay and result view
+- 'r': Reset to automatic detection
+- 's': Save mask
+- 'q' or ESC: Quit
+
+Lines to modify:
+- Line 381: Set input_folder path to your mask directory
+
+Command line usage:
+  python water_detection-tweaking.py <path> [--auto] [--cam-only]
+  
+Arguments:
+  path: Path to image file or folder
+  --auto: Skip interactive mode, use automatic detection only
+  --cam-only: Process only files starting with "Cam"
+
+Output:
+- Masks saved as: mask_CamX.jpg (where X is camera number from filename)
+"""
+
 import cv2
 import numpy as np
 import os
@@ -15,12 +53,6 @@ class InteractiveWaterDetector:
         
         # Resize if image is too large
         height, width = self.original_image.shape[:2]
-        max_size = 1200
-        if max(height, width) > max_size:
-            scale = max_size / max(height, width)
-            new_width = int(width * scale)
-            new_height = int(height * scale)
-            self.original_image = cv2.resize(self.original_image, (new_width, new_height))
         
         self.current_image = self.original_image.copy()
         self.mask = np.zeros(self.original_image.shape[:2], dtype=np.uint8)

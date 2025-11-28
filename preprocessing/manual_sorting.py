@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 """
 Interactive Image Quality Control Tool
 ======================================
@@ -74,6 +73,10 @@ while index < len(image_files):
         print(f"Failed to load {image_file}, skipping.")
         index += 1
         continue
+    
+    # Resize to 33% of original size
+    h, w = image.shape[:2]
+    image = cv2.resize(image, (w//3, h//3))
 
     cv2.imshow(window_name, image)
 
