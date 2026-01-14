@@ -1,0 +1,51 @@
+{
+  "corrections": {
+    "KEY_123": {
+      "type": "rename_lake",
+      "new_lake_name": "Lac Fourchu",
+      "comment": "Correction du nom du lac pour cette observation"
+    },
+    "KEY_456": {
+      "type": "no_match",
+      "comment": "Cette observation ne doit pas être associée à un lac - garder point GPS original"
+    },
+    "uuid:e8d52455-77ac-4ed5-9dd1-7699f22c7633": {
+      "type": "rename_lake",
+      "new_lake_name": "Lac du Roc",
+      "comment": "Coordonnées GPS corrigées"
+    },
+    "uuid:5214df22-79fb-4a82-bed2-9d537b0a27b7": {
+      "type": "rename_lake", 
+      "new_lake_name": "Lac Noir",
+      "comment": "Nom corrigé"
+    },
+    "uuid:8c7f7293-0417-4c71-8815-b8a9876ec895": {
+      "type": "rename_lake", 
+      "new_lake_name": "Lérié",
+      "comment": "Nom corrigé"
+    },
+    "uuid:3f9c2bb0-01c8-4fe4-94b5-6dcbfd3d4aab": {
+      "type": "no_match",
+      "comment": "Cette observation ne doit pas être associée à un lac - garder point GPS original"
+    },
+    "uuid:69205273-4dd2-4c36-bf82-56d50f80a11b": {
+      "type": "no_match",
+      "comment": "Cette observation ne doit pas être associée à un lac - garder point GPS original"
+    },
+    "uuid:3a3d1e9e-b447-4704-ab30-69e9969bc98a": {
+      "type": "ignore",
+      "comment": "Observation invalide - à ignorer complètement"
+    },
+    "uuid:e3afecf8-ed3c-4ecb-a9b4-a4a968dcb62d": {
+      "type": "ignore",
+      "comment": "Observation invalide - à ignorer complètement"
+    }
+  },
+  "force_matches": {
+    "fourchu": "Lac Fourchu",
+    "vens": "Lacs de Vens", 
+    "pormenaz": "Lac de Pormenaz",
+    "pisses": "Lac des Pisses",
+    "lauvitel": "Lac de Lauvitel"
+  }
+}

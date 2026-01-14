@@ -1,54 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-CNN Algae Detection with Proper Image-Level Split
-=================================================
-Trains a deep convolutional neural network for pixel-level algae detection
-using 32×32 image patches. Implements proper data split at IMAGE level to
-prevent data leakage, ensuring test images are completely unseen during training.
+CNN Algae Detection with PROPER IMAGE-LEVEL SPLIT
+Fixes data leakage by ensuring no image appears in both train and test sets
 
-Architecture:
-- 4 convolutional blocks (32→64→128→256 filters)
-- Batch normalization and max pooling
-- 3 fully connected layers with dropout (0.5)
-- Input: 32×32×3 RGB patches
-- Output: Binary classification (algae vs water)
+Author: jonas (fixed by Claude)
+Date: November 2025
 
-Key Features:
-- IMAGE-LEVEL split: No patches from test images appear in training
-- Temporal stratification: 60% train / 20% validation / 20% test
-- Early stopping based on validation F1-score
-- Threshold optimization for best F1 on validation set
-- Comprehensive visualization of training curves and performance
-
-Training Process:
-1. Extract patches from COCO annotations
-2. Split images (not patches) into train/val/test
-3. Train CNN with Adam optimizer
-4. Monitor validation F1 for early stopping
-5. Optimize decision threshold
-6. Evaluate on held-out test images
-
-Lines to modify:
-- Line 89: COCO_JSON path (COCO annotation file)
-- Line 90: IMAGES_DIR path (transformed images directory)
-- Line 91: OUTPUT_DIR path (model and results output directory)
-- Lines 95-99: Hyperparameters (PATCH_SIZE=32, BATCH_SIZE=32, EPOCHS=30, LEARNING_RATE=0.001)
-- Line 100: RANDOM_SEED for reproducibility
-
-Output:
-- PTH: best_model.pth (trained CNN weights at best validation epoch)
-- PKL: cnn_results.pkl (complete results dictionary)
-- TXT: cnn_results.txt (human-readable results report)
-- CSV: test_predictions.csv (per-patch predictions on test set)
-- PNG: training_curves.png, confusion_matrix.png, roc_curve.png, precision_recall_curve.png
-
-Expected Performance: F1-score ≈ 0.96-0.98 (significantly better than RF/XGBoost)
-
-CRITICAL: This script fixes the data leakage problem. Previous versions split at
-patch level, allowing patches from the same image in both train and test sets.
-
-@author: jonas (fixed by Claude)
-Created: November 2025
+CRITICAL FIX: This script splits at IMAGE level (not patch level) to prevent data leakage.
 """
 
 import json

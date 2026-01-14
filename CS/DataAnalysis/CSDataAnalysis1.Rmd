@@ -1,0 +1,503 @@
+---
+title: "CS-DataAnalysis"
+author: "Jonas"
+date: "2025-10-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(sf)
+library(lubridate)
+library(DT)
+library(janitor)
+
+library(ggmap)
+library(plotly)
+library(patchwork)
+library(viridis)
+library(corrplot)
+library(ggExtra)
+library(hexbin)
+```
+
+## Alpine Lakes Algae Analysis - Citizen science - Jonas Woodtli, 2025
+
+```{r load}
+# Load CSV
+algae_data <- read_csv("./obs_algues/obs_algues_bis.csv")
+
+# Removing empty rows
+algae_data[!(is.na(algae_data$`version`) | algae_data$`version`==""), ]
+
+algae_data <- algae_data %>% janitor::clean_names()
+
+names(algae_data)
+head(algae_data)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r GPS}
+# Check GPS data availability and accuracy
+location_check <- algae_data %>%
+  select(contains("Latitude"), contains("Longitude"), contains("Altitude"), 
+         contains("Accuracy"), contains("nom_lac")) %>%
+  mutate(
+    has_coords = !is.na(get("general_contexte_loc_Latitude")) & 
+                 !is.na(get("general_contexte_loc_Longitude")),
+    has_altitude = !is.na(get("general_contexte_loc_Altitude")),
+    accuracy = get("general_contexte_loc_Accuracy")
+  ) %>%
+  summarise(
+    total_records = n(),
+    with_gps = sum(has_coords),
+    with_altitude = sum(has_altitude),
+    mean_accuracy_m = mean(accuracy, na.rm = TRUE),
+    median_accuracy_m = median(accuracy, na.rm = TRUE)
+  )
+
+print("Location data quality:")
+print(location_check)
+
+# Map sample (requires sf)
+algae_spatial <- algae_data %>%
+  filter(!is.na(get("general_contexte_loc_Latitude"))) %>%
+  st_as_sf(
+    coords = c("general_contexte_loc_Longitude", "general_contexte_loc_Latitude"),
+    crs = 4326
+  )
+
+plot(st_geometry(algae_spatial), main = "Survey Locations")
+```
+```{r time}
+# Parse timestamps
+algae_temporal <- algae_data %>%
+  mutate(
+    submission_date = ymd_hms(`SubmissionDate`),
+    observation_date = ymd_hms(`general_contexte_date_heure`),
+    date_only = date(observation_date),
+    month = month(observation_date, label = TRUE),
+    hour = hour(observation_date)
+  )
+
+# Submission timeline
+ggplot(algae_temporal, aes(x = submission_date)) +
+  geom_histogram(bins = 20, fill = "steelblue") +
+  labs(title = "Submissions Over Time", x = "Date", y = "Count") +
+  theme_minimal()
+```
+
+```{r algae}
+# Algae presence and types
+algae_summary <- algae_data %>%
+  mutate(
+    bloom_observed = `observation_obs_bloom`,
+    algae_present = !is.na(`observation_algae_alg_id`) | !is.na(`observation_algae_alg_dominante`),
+    algae_color = `observation_algae_alg_couleur`,
+    coverage_pct = `observation_algae_alg_recouvr_pourcent`,
+    turbidity = `observation_obs_turbidity`
+  ) %>%
+  summarise(
+    total_obs = n(),
+    bloom_detected = sum(bloom_observed == "yes", na.rm = TRUE),
+    algae_recorded = sum(algae_present, na.rm = TRUE),
+    samples_taken = sum(!is.na(`observation_algae_prelevement_prise_prelevement`)),
+    photos_attached = sum(AttachmentsPresent > 0, na.rm = TRUE)
+  )
+
+print("Observation coverage:")
+print(algae_summary)
+
+# Algae types identified
+algae_types <- algae_data %>%
+  select(contains("alg_"), -contains("alg_substrat"), -contains("prelevement")) %>%
+  select(matches("alg_(dominante|id|groupe_morpho|couleur)")) %>%
+  pivot_longer(everything(), names_to = "field", values_to = "value") %>%
+  filter(value != "" & !is.na(value)) %>%
+  count(field, value, sort = TRUE)
+
+# Algae identifications
+print(algae_types)
+```
+
+```{r env}
+# Contextual data quality
+env_data <- algae_data %>%
+  select(contains("meteo"), contains("turbidity"), contains("tour")) %>%
+  mutate(
+    weather = `general_contexte_meteo`,
+    turbidity = `observation_obs_turbidity`,
+    coverage = `observation_obs_pourcent_tour`
+  ) %>%
+  select(weather, turbidity, coverage) %>%
+  filter(weather != "" | !is.na(turbidity) | !is.na(coverage))
+
+print("Environmental data captured:")
+table(env_data$weather, useNA = "ifany")
+```
+
+```{r PLOTS}
+# ============================================================================
+# 1. LOAD AND PREPARE DATA
+# ============================================================================
+
+# Parse and prepare temporal/spatial data
+algae_data <- algae_data %>%
+  mutate(
+    submission_date = ymd_hms(submission_date),
+    observation_date = ymd_hms(general_contexte_date_heure),
+    obs_date = date(observation_date),
+    month = month(observation_date, label = TRUE),
+    hour = hour(observation_date),
+    lat = general_contexte_loc_latitude,
+    lon = general_contexte_loc_longitude,
+    altitude = general_contexte_loc_altitude,
+    accuracy = general_contexte_loc_accuracy,
+    bloom = observation_obs_bloom,
+    turbidity = observation_obs_turbidity,
+    coverage = observation_obs_pourcent_tour,
+    algae_id = observation_algae_alg_id,
+    algae_dominant = observation_algae_alg_dominante,
+    algae_color = observation_algae_alg_couleur,
+    lake_name = general_contexte_nom_lac,
+    photos = attachments_present
+  )
+
+# ============================================================================
+# 2. ADVANCED SPATIAL VISUALIZATIONS
+# ============================================================================
+
+# 2A: Hexbin density map with altitude overlay
+hex_map <- algae_data %>%
+  filter(!is.na(lat), !is.na(lon), !is.na(altitude)) %>%
+  ggplot(aes(x = lon, y = lat, fill = altitude)) +
+  geom_hex(bins = 15, alpha = 0.8) +
+  scale_fill_viridis_c(option = "turbo", name = "Altitude (m)") +
+  labs(
+    title = "Survey Locations Density & Altitude Distribution",
+    x = "Longitude", y = "Latitude"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    panel.grid.major = element_line(size = 0.2)
+  )
+
+# 2B: Interactive map with bloom status
+bloom_data <- algae_data %>%
+  filter(!is.na(lat), !is.na(lon)) %>%
+  mutate(
+    bloom_status = factor(bloom, levels = c("yes", "no", "")),
+    label = paste0(
+      "<b>", lake_name, "</b><br>",
+      "Bloom: ", bloom, "<br>",
+      "Altitude: ", altitude, "m<br>",
+      "Accuracy: ", accuracy, "m"
+    )
+  )
+
+interactive_map <- plot_ly(data = bloom_data, type = "scattergeo", mode = "markers") %>%
+  add_trace(
+    lon = ~lon, lat = ~lat,
+    marker = list(
+      size = 8,
+      color = ~(bloom == "yes"),
+      colorscale = list(c(0, "steelblue"), c(1, "crimson")),
+      showscale = FALSE,
+      line = list(width = 1, color = "white")
+    ),
+    text = ~label,
+    hoverinfo = "text"
+  ) %>%
+  layout(
+    title = "Alpine Lakes Survey Map - Bloom Status",
+    geo = list(
+      scope = "europe",
+      projection = list(type = "natural earth"),
+      showland = TRUE,
+      landcolor = "rgb(243, 243, 243)"
+    ),
+    hoverlabel = list(namelength = -1)
+  )
+
+print(hex_map)
+print(interactive_map)
+
+# ============================================================================
+# 3. TEMPORAL ANALYSIS WITH ADVANCED PLOTTING
+# ============================================================================
+
+# 3A: Time series with rolling window
+temporal_summary <- algae_data %>%
+  filter(!is.na(obs_date)) %>%
+  group_by(obs_date) %>%
+  summarise(
+    n_obs = n(),
+    blooms = sum(bloom == "yes", na.rm = TRUE),
+    mean_altitude = mean(altitude, na.rm = TRUE),
+    mean_turbidity = as.numeric(mean(as.numeric(turbidity), na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  arrange(obs_date) %>%
+  mutate(
+    bloom_pct = 100 * blooms / n_obs,
+    rolling_blooms = zoo::rollmean(blooms, k = 3, fill = NA)
+  )
+
+timeseries_plot <- temporal_summary %>%
+  ggplot(aes(x = obs_date)) +
+  geom_col(aes(y = n_obs), fill = "lightgray", alpha = 0.6) +
+  geom_line(aes(y = rolling_blooms * 2, color = "Rolling Avg (3-day)"), 
+            linewidth = 1.2) +
+  geom_point(aes(y = blooms * 2, color = "Daily Blooms"), size = 3) +
+  scale_y_continuous(
+    name = "Number of Observations",
+    sec.axis = sec_axis(~./2, name = "Blooms Detected")
+  ) +
+  scale_color_manual(
+    values = c("Rolling Avg (3-day)" = "darkred", "Daily Blooms" = "firebrick")
+  ) +
+  labs(
+    title = "Temporal Pattern of Observations and Bloom Detection",
+    x = "Date", color = "Metric"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(size = 14, face = "bold")
+  )
+
+print(timeseries_plot)
+
+# 3B: Heatmap: Hour of day vs. Bloom detection
+hourly_heatmap <- algae_data %>%
+  filter(!is.na(hour), !is.na(bloom)) %>%
+  mutate(month = factor(month, levels = month.abb[1:12])) %>%
+  group_by(hour, month) %>%
+  summarise(bloom_rate = sum(bloom == "yes") / n() * 100, .groups = "drop") %>%
+  ggplot(aes(x = hour, y = month, fill = bloom_rate)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_viridis_c(option = "plasma", name = "Bloom %") +
+  scale_x_continuous(breaks = seq(0, 23, 2)) +
+  labs(
+    title = "Bloom Detection Rate: Hour of Day × Month",
+    x = "Hour of Day", y = "Month"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+print(hourly_heatmap)
+
+# ============================================================================
+# 4. ALTITUDE & ENVIRONMENTAL RELATIONSHIPS
+# ============================================================================
+
+# 4A: Scatter with marginal density (altitude vs turbidity)
+alt_turb <- algae_data %>%
+  filter(!is.na(altitude), !is.na(turbidity)) %>%
+  mutate(turbidity_num = as.numeric(turbidity)) %>%
+  ggplot(aes(x = altitude, y = turbidity_num, color = bloom)) +
+  geom_jitter(size = 3, alpha = 0.6, width = 0) +
+  scale_color_manual(
+    values = c("yes" = "firebrick", "no" = "steelblue"),
+    na.value = "gray",
+    name = "Bloom"
+  ) +
+  labs(
+    title = "Altitude vs. Turbidity (colored by bloom status)",
+    x = "Altitude (m)", y = "Turbidity"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+alt_turb_marginal <- ggExtra::ggMarginal(alt_turb, type = "density", fill = "steelblue")
+print(alt_turb_marginal)
+
+# 4B: Multi-facet altitude analysis
+altitude_analysis <- algae_data %>%
+  filter(!is.na(altitude), !is.na(bloom)) %>%
+  ggplot(aes(x = bloom, y = altitude, fill = bloom)) +
+  geom_boxplot(alpha = 0.6) +
+  geom_jitter(width = 0.2, alpha = 0.3, size = 2) +
+  scale_fill_manual(values = c("yes" = "firebrick", "no" = "steelblue"),
+                    na.value = "gray") +
+  facet_wrap(~ifelse(coverage %in% c("all", "part"), coverage, NA), 
+             labeller = labeller(.rows = label_both)) +
+  labs(
+    title = "Altitude Distribution: Bloom Status × Coverage Percentage",
+    x = "Bloom Observed", y = "Altitude (m)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  )
+
+print(altitude_analysis)
+
+# ============================================================================
+# 5. ALGAE TYPE ANALYSIS
+# ============================================================================
+
+# 5A: Flower plot of algae types by characteristics
+algae_chars <- algae_data %>%
+  filter(!is.na(algae_dominant) | !is.na(algae_id)) %>%
+  mutate(
+    algae_type = coalesce(algae_id, algae_dominant),
+    color_fill = coalesce(algae_color, "unknown")
+  ) %>%
+  group_by(algae_type, color_fill) %>%
+  summarise(
+    count = n(),
+    bloom_rate = sum(bloom == "yes", na.rm = TRUE) / n() * 100,
+    mean_altitude = mean(altitude, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(count > 0) %>%
+  arrange(desc(count))
+
+algae_bubble <- algae_chars %>%
+  ggplot(aes(x = reorder(algae_type, -count), y = bloom_rate, 
+             size = count, fill = color_fill)) +
+  geom_jitter(shape = 21, alpha = 0.7, width = 0.2, height = 0) +
+  scale_size(name = "Observations", range = c(3, 15)) +
+  scale_fill_manual(
+    values = c(
+      "green" = "forestgreen", "brown" = "sienna", "red" = "firebrick",
+      "yellow" = "goldenrod", "blue" = "steelblue", "unknown" = "gray"
+    ),
+    name = "Color"
+  ) +
+  labs(
+    title = "Algae Types: Frequency vs. Bloom Association",
+    x = "Algae Type", y = "Bloom Rate (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "right"
+  )
+
+print(algae_bubble)
+
+# 5B: Sankey-style flow: Algae ID → Color → Bloom
+algae_flow <- algae_data %>%
+  filter(!is.na(algae_id), !is.na(algae_color), !is.na(bloom)) %>%
+  group_by(algae_id, algae_color, bloom) %>%
+  tally() %>%
+  ggplot(aes(x = algae_id, fill = algae_color)) +
+  geom_bar() +
+  facet_wrap(~bloom, labeller = labeller(bloom = c(yes = "Bloom: YES", no = "Bloom: NO"))) +
+  scale_fill_manual(
+    values = c(
+      "green" = "forestgreen", "brown" = "sienna", "red" = "firebrick",
+      "yellow" = "goldenrod", "blue" = "steelblue", "unknown" = "gray"
+    ),
+    name = "Algae Color"
+  ) +
+  labs(
+    title = "Algae ID × Color Distribution by Bloom Status",
+    x = "Algae ID", y = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+
+print(algae_flow)
+
+# ============================================================================
+# 6. PHOTO & SAMPLING EFFORT ANALYSIS
+# ============================================================================
+
+# 6A: Multi-dimensional effort visualization
+effort_data <- algae_data %>%
+  filter(!is.na(lat), !is.na(lon)) %>%
+  mutate(
+    has_photo = photos > 0,
+    altitude_cat = cut(altitude, breaks = c(0, 1500, 2000, 2500, 3500),
+                       labels = c("< 1500m", "1500-2000m", "2000-2500m", "> 2500m"))
+  ) %>%
+  group_by(altitude_cat) %>%
+  summarise(
+    n = n(),
+    photo_pct = sum(has_photo) / n() * 100,
+    bloom_pct = sum(bloom == "yes", na.rm = TRUE) / n() * 100,
+    mean_accuracy = mean(accuracy, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+effort_plot <- effort_data %>%
+  pivot_longer(c(photo_pct, bloom_pct), names_to = "metric", values_to = "pct") %>%
+  ggplot(aes(x = altitude_cat, y = pct, fill = metric, alpha = I(0.7))) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = paste0(round(pct), "%")), 
+            position = position_dodge(width = 0.9), vjust = -0.3) +
+  scale_fill_manual(
+    values = c("photo_pct" = "orange", "bloom_pct" = "firebrick"),
+    labels = c("photo_pct" = "Photo Coverage", "bloom_pct" = "Blooms Detected")
+  ) +
+  labs(
+    title = "Survey Effort and Bloom Detection by Altitude Band",
+    x = "Altitude Band", y = "Percentage (%)", fill = "Metric"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+print(effort_plot)
+
+# ============================================================================
+# 7. CORRELATION MATRIX
+# ============================================================================
+
+# Extract numeric variables
+numeric_vars <- algae_data %>%
+  select(
+    altitude, accuracy, coverage,
+    photos
+  ) %>%
+  mutate(
+    bloom_binary = as.numeric(algae_data$bloom == "yes"),
+    turbidity_num = as.numeric(algae_data$turbidity)
+  ) %>%
+  filter(complete.cases(.))
+
+numeric_vars <- algae_data %>% select(where(is.numeric))
+
+if (nrow(numeric_vars) > 0) {
+  cor_matrix <- cor(numeric_vars, use = "complete.obs")
+  
+  png(filename = "correlation_matrix.png", width = 800, height = 700)
+  corrplot(cor_matrix, 
+           method = "circle", 
+           type = "upper",
+           addCoef.col = "black",
+           diag = FALSE,
+           title = "Correlation Matrix: Environmental & Observation Variables",
+           mar = c(0, 0, 2, 0))
+  dev.off()
+  
+  print("Correlation matrix saved as 'correlation_matrix.png'")
+}
+
+# ============================================================================
+# 8. COMBINED DASHBOARD VIEW
+# ============================================================================
+
+dashboard <- (hex_map / timeseries_plot) | 
+             (altitude_analysis / algae_bubble) +
+  plot_annotation(
+    title = "Alpine Algae Survey - Multi-Dimensional Analysis Dashboard",
+    theme = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))
+  )
+
+print(dashboard)
+ggsave("algae_dashboard.pdf", dashboard, width = 16, height = 12, dpi = 300)
+```
