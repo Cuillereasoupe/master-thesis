@@ -2,15 +2,6 @@
 """
 Interactive Water Mask Creation Tool
 ====================================
-Creates and refines water masks for lake images through automatic detection
-and manual editing. Designed for timelapse camera images with lake water bodies.
-
-Key functionality:
-- Automatic water detection using color (HSV), brightness, and edge analysis
-- Interactive mask refinement with brush tools
-- Real-time preview with mask overlay (pink) and result view
-- Processes single images or batches of camera images
-- Saves masks with camera-specific naming convention
 
 Controls (interactive mode):
 - Left click + drag: Add/remove mask areas
@@ -22,13 +13,9 @@ Controls (interactive mode):
 - 'q' or ESC: Quit
 
 Lines to modify:
-- Line 381: Set input_folder path to your mask directory
-
-Command line usage:
-  python water_detection-tweaking.py <path> [--auto] [--cam-only]
+- Set input_folder path to your mask directory
   
 Arguments:
-  path: Path to image file or folder
   --auto: Skip interactive mode, use automatic detection only
   --cam-only: Process only files starting with "Cam"
 
@@ -372,12 +359,8 @@ def main():
 
 if __name__ == "__main__":
     # Modified example usage for Cam images
-    input_folder = "C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/mask"
+    input_folder = "./data/masks/"
     
     # Process all images starting with "Cam" in the folder
     print("Processing all images starting with 'Cam'...")
     process_cam_images(input_folder, interactive=True)
-    
-    # Or use command line:
-    # python script.py "C:/Users/jonas/Documents/uni/TM/RS/img/asdaf" --cam-only
-    # python script.py "C:/Users/jonas/Documents/uni/TM/RS/img/asdaf" --cam-only --auto

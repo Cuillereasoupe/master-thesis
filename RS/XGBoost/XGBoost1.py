@@ -1,18 +1,7 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 """
 XGBoost Classifier with Hyperparameter Tuning
 =============================================
-Trains and optimizes XGBoost classifier for pixel-level algae detection.
-Compared to Random Forest, XGBoost typically offers faster training and
-similar or better performance through gradient boosting.
-
-Key functionality:
-- Extracts 14 color features from annotated pixels
-- Handles class imbalance via scale_pos_weight parameter
-- Hyperparameter tuning via GridSearchCV (3-fold CV)
-- Decision threshold optimization for maximum F1-score
-- Comprehensive performance visualization
 
 Training process:
 1. Baseline XGBoost with default parameters
@@ -21,24 +10,19 @@ Training process:
 4. Final evaluation with optimized threshold
 
 Lines to modify:
-- Line 72: COCO_JSON path (COCO annotation file)
-- Line 73: IMAGES_DIR path (transformed images directory)
-- Line 74: OUTPUT_DIR path (where models/figures will be saved)
-- Line 171: max_pixels sampling (3000 default, adjust for memory/speed tradeoff)
-- Lines 248-254: Hyperparameter grid (modify search space as needed)
+- COCO_JSON path (COCO annotation file)
+- IMAGES_DIR path (transformed images directory)
+- OUTPUT_DIR path (where models/figures will be saved)
+- Line 156: max_pixels sampling (3000 default, adjust for memory/speed tradeoff)
+- Hyperparameter grid (modify search space as needed)
 
 Output:
 - PKL: xgboost_optimized.pkl (trained model with metadata)
-- PNG: Multiple figures (confusion matrices, ROC, PR curves, feature importance)
 - TXT: xgboost_results.txt (detailed performance metrics)
 - CSV: Feature importance rankings, model comparison
 
-Expected performance: F1-score ≈ 0.78-0.82 (comparable to Random Forest, faster training)
-
-Note: Requires xgboost package (pip install xgboost)
-
 @author: jonas
-Created: 2024-2025
+Created: 2025
 """
 
 import json
@@ -69,9 +53,9 @@ except ImportError:
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/XGBoost/output/'
+COCO_JSON = './data/result_coco.json'
+IMAGES_DIR = './data/transformed/'
+OUTPUT_DIR = './output/XGBoost/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 print("="*70)
@@ -384,177 +368,14 @@ print(f"  • Total improvement:      {total_improvement:+.4f} ({100*total_impro
 
 comparison.to_csv(os.path.join(OUTPUT_DIR, 'xgboost_variants_comparison.csv'), index=False)
 
-# ============================================================================
-# VISUALIZATIONS
-# ============================================================================
-
-print("\n9. Creating visualizations...")
-
-# Confusion matrices comparison (3 XGBoost variants)
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-predictions = [
-    (baseline_pred, 'XGBoost Baseline'),
-    (y_pred_test, 'XGBoost Tuned (threshold=0.5)'),
-    (y_pred_optimized, f'XGBoost Optimized (threshold={optimal_threshold:.3f})')
-]
-
-for idx, (pred, title) in enumerate(predictions):
-    cm = confusion_matrix(y_test, pred)
-    
-    ax = axes[idx]
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                xticklabels=['Water', 'Algae'],
-                yticklabels=['Water', 'Algae'],
-                cbar_kws={'label': 'Count'})
-    
-    f1 = f1_score(y_test, pred)
-    ax.set_title(f'{title}\nF1={f1:.4f}', fontsize=12, fontweight='bold')
-    ax.set_ylabel('True Label', fontsize=11)
-    ax.set_xlabel('Predicted Label', fontsize=11)
-
-plt.suptitle('XGBoost Performance: Baseline vs Tuned vs Optimized', 
-             fontsize=14, fontweight='bold', y=1.02)
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'confusion_matrices_xgboost.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: confusion_matrices_xgboost.png")
-
-# Precision-Recall curve
-fig, ax = plt.subplots(figsize=(10, 8))
-
-ax.plot(recall, precision, linewidth=2, color='darkblue', label='XGBoost PR Curve')
-ax.scatter(recall[optimal_idx], precision[optimal_idx], s=200, c='red', 
-          marker='*', zorder=5, edgecolors='black', linewidths=2,
-          label=f'Optimal Threshold={optimal_threshold:.3f} (F1={f1_scores[optimal_idx]:.3f})')
-ax.scatter(recall_score(y_test, y_pred_test), precision_score(y_test, y_pred_test),
-          s=150, c='orange', marker='o', zorder=5, edgecolors='black', linewidths=2,
-          label=f'Default Threshold=0.5 (F1={f1_score(y_test, y_pred_test):.3f})')
-
-ax.set_xlabel('Recall', fontsize=12, fontweight='bold')
-ax.set_ylabel('Precision', fontsize=12, fontweight='bold')
-ax.set_title('Precision-Recall Curve - XGBoost', fontsize=14, fontweight='bold')
-ax.legend(loc='best', fontsize=11)
-ax.grid(alpha=0.3)
-ax.set_xlim([0, 1])
-ax.set_ylim([0, 1])
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'precision_recall_curve_xgboost.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: precision_recall_curve_xgboost.png")
-
-# F1-Score vs Threshold
-fig, ax = plt.subplots(figsize=(10, 6))
-
-valid_indices = np.where(thresholds <= 1.0)[0]
-ax.plot(thresholds[valid_indices], f1_scores[valid_indices], linewidth=2, color='darkblue')
-ax.axvline(optimal_threshold, color='red', linestyle='--', linewidth=2,
-          label=f'Optimal: {optimal_threshold:.3f} (F1={f1_scores[optimal_idx]:.3f})')
-ax.axvline(0.5, color='orange', linestyle='--', linewidth=2, alpha=0.7,
-          label=f'Default: 0.5 (F1={f1_score(y_test, y_pred_test):.3f})')
-
-ax.set_xlabel('Decision Threshold', fontsize=12, fontweight='bold')
-ax.set_ylabel('F1-Score', fontsize=12, fontweight='bold')
-ax.set_title('F1-Score vs Decision Threshold - XGBoost', fontsize=14, fontweight='bold')
-ax.legend(fontsize=11)
-ax.grid(alpha=0.3)
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'threshold_optimization_xgboost.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: threshold_optimization_xgboost.png")
-
-# ROC curve
-print("\n   Computing ROC curve...")
-
 fpr_xgb, tpr_xgb, roc_thresholds = roc_curve(y_test, y_pred_proba_test)
 roc_auc_xgb = auc(fpr_xgb, tpr_xgb)
-
-print(f"   ✓ Test AUC-ROC: {roc_auc_xgb:.4f}")
 
 # Find the point on ROC curve closest to our optimal threshold
 optimal_threshold_idx = np.argmin(np.abs(roc_thresholds - optimal_threshold))
 
-fig, ax = plt.subplots(figsize=(10, 8))
-
-ax.plot(fpr_xgb, tpr_xgb, linewidth=2, color='darkblue', 
-        label=f'XGBoost (AUC = {roc_auc_xgb:.4f})')
-
-ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random Classifier (AUC=0.5)')
-
-# Mark optimal threshold point
-if optimal_threshold_idx < len(fpr_xgb):
-    ax.scatter(fpr_xgb[optimal_threshold_idx], tpr_xgb[optimal_threshold_idx],
-              s=200, c='red', marker='*', zorder=5, edgecolors='black', linewidths=2,
-              label=f'Optimal Threshold={optimal_threshold:.3f}')
-
-# Mark default threshold (0.5) point
-default_threshold_idx = np.argmin(np.abs(roc_thresholds - 0.5))
-if default_threshold_idx < len(fpr_xgb):
-    ax.scatter(fpr_xgb[default_threshold_idx], tpr_xgb[default_threshold_idx],
-              s=150, c='orange', marker='o', zorder=5, edgecolors='black', linewidths=2,
-              label=f'Default Threshold=0.5')
-
-ax.set_xlim([0.0, 1.0])
-ax.set_ylim([0.0, 1.05])
-ax.set_xlabel('False Positive Rate (1 - Specificity)', fontsize=12, fontweight='bold')
-ax.set_ylabel('True Positive Rate (Recall/Sensitivity)', fontsize=12, fontweight='bold')
-ax.set_title('ROC Curve - XGBoost', fontsize=14, fontweight='bold')
-ax.legend(loc="lower right", fontsize=11)
-ax.grid(alpha=0.3)
-
-# Add informative text box
-textstr = (
-    'AUC = Area Under Curve\n'
-    f'Perfect classifier: AUC = 1.0\n'
-    f'Random classifier: AUC = 0.5\n'
-    f'XGBoost: AUC = {roc_auc_xgb:.3f}'
-)
-ax.text(0.55, 0.35, textstr, fontsize=10, verticalalignment='top',
-       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'roc_curve_xgboost.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: roc_curve_xgboost.png")
-
 # Feature importance
 importances = best_xgb.feature_importances_
-indices = np.argsort(importances)[::-1]
-
-fig, ax = plt.subplots(figsize=(10, 8))
-
-colors = plt.cm.viridis(np.linspace(0, 1, len(feature_names)))
-bars = ax.barh(range(len(importances)), importances[indices], color=colors[indices])
-
-ax.set_yticks(range(len(importances)))
-ax.set_yticklabels([feature_names[i] for i in indices])
-ax.set_xlabel('Feature Importance', fontsize=12, fontweight='bold')
-ax.set_title('XGBoost Feature Importance', fontsize=14, fontweight='bold')
-ax.grid(alpha=0.3, axis='x')
-
-for i, (idx, imp) in enumerate(zip(indices, importances[indices])):
-    ax.text(imp + 0.002, i, f'{imp:.4f}', va='center', fontsize=9)
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'feature_importance_xgboost.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: feature_importance_xgboost.png")
-
-# Print top features
-print("\n   Top 5 Most Important Features:")
-for i in range(5):
-    idx = indices[i]
-    print(f"   {i+1}. {feature_names[idx]:15s}: {importances[idx]:.4f}")
-
-# Save feature importance to CSV
-feature_importance_df = pd.DataFrame({
-    'Feature': [feature_names[i] for i in indices],
-    'Importance': importances[indices]
-})
-feature_importance_df.to_csv(os.path.join(OUTPUT_DIR, 'feature_importance_xgboost.csv'), index=False)
-print("   ✓ Saved: feature_importance_xgboost.csv")
 
 # ============================================================================
 # SAVE MODEL

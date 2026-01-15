@@ -2,15 +2,6 @@
 """
 Interactive Image Quality Control Tool
 ======================================
-Manual review and selection of timelapse images based on quality criteria.
-Automatically copies first selected image per camera to mask folder for 
-water mask creation.
-
-Selection criteria (displayed in popup):
-- Entire lake is visible
-- No shadows on the lake
-- No reflections on the lake's surface
-- Water isn't too milky
 
 Controls:
 - Y: Keep image and advance
@@ -19,9 +10,9 @@ Controls:
 - ESC: Quit
 
 Lines to modify:
-- Line 38: Set source_folder (folder containing images to review)
-- Line 39: Set destination_folder (folder for selected images)
-- Line 40: Set mask_folder (folder where first image per camera is copied)
+- Set source_folder (folder containing images to review)
+- Set destination_folder (folder for selected images)
+- Set mask_folder (folder where first image per camera is copied)
 
 Output:
 - Selected images → destination_folder
@@ -34,9 +25,9 @@ import shutil
 import ctypes
 
 # Paths
-source_folder = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/test/'
-destination_folder = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/img/'
-mask_folder = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/mask/'
+source_folder = './data/raw_frames/'
+destination_folder = './data/selected/'
+mask_folder = './data/masks/'
 
 # Make sure the destination and mask folders exist
 os.makedirs(destination_folder, exist_ok=True)

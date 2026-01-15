@@ -3,18 +3,12 @@
 Image Masking and Homography Transformation
 ===========================================
 Applies water masking and perspective transformation to timelapse images
-to generate top-down orthorectified views of alpine lakes.
-
-Key functionality:
-- Loads camera-specific masks and transformation parameters from JSON config
-- Converts GPS coordinates to pixel coordinates for georeferencing
-- Applies homography transformation for perspective correction
-- Processes multiple cameras automatically based on filename prefix
+to generate top-down orthorectified views.
 
 Lines to modify:
-- Line 126: Set base_path to your project directory
-- Line 127: Ensure camera_config.json exists at specified path (see config format in docs)
-- Lines 128-131: Set input/output directory paths
+- Set base_path to your project directory
+- Ensure camera_config.json exists at specified path (see config format in docs)
+- Set input/output directory paths
 
 Configuration file format (camera_config.json):
 {
@@ -122,12 +116,11 @@ def process_image(image_path, mask_path, homography_matrix, output_path, output_
 
 def main():
     # Paths
-    base_path = "C:/Users/jonas/Documents/uni/TM/RS"
-    config_path = os.path.join(base_path, "scripts", "camera_config.json")
-    img_dir = os.path.join(base_path, "img", "2025", "Muzelle", "img")
-    mask_dir = os.path.join(base_path, "img", "2025", "Muzelle", "mask")
-    output_dir = os.path.join(base_path, "img", "2025", "Muzelle", "transformed")
-    output_masked_dir = os.path.join(base_path, "img", "2025", "Muzelle", "masked_img")
+    config_path = "./config/camera_config.json"
+    img_dir = "./data/selected/"
+    mask_dir = "./data/masks/"
+    output_dir = "./data/transformed/"
+    output_masked_dir = "./data/masked/"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)

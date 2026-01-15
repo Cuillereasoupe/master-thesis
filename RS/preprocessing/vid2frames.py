@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 """
 Video Frame Extraction for Timelapse Camera Data
 ================================================
 Extracts individual frames from timelapse videos with timestamp-based naming.
 Handles multi-camera processing with flexible timing logic for irregular schedules.
 
-Key functionality:
-- Extracts frames at 1h intervals (6h-19h daily)
-- Supports optional 20h images for specific dates
-- Assigns camera IDs and timestamps to each frame
-- Processes multiple videos in batch
-
 Lines to modify:
-- Line 159-160: Set your video_folder and output_folder paths
-- Line 164: Define start_times dict with video filenames and timestamps
-- Line 168: (Optional) Define camera_mapping dict for custom camera IDs
-- Line 172: (Optional) List dates with additional 20h images (format: 'YYYY-MM-DD')
+- Set your video_folder and output_folder paths
+- Define start_times dict with video filenames and timestamps
+- (Optional) Define camera_mapping dict for custom camera IDs
+- (Optional) List dates with additional 20h images (format: 'YYYY-MM-DD')
 """
 
 import cv2
@@ -156,8 +149,8 @@ def process_videos_in_folder(video_folder, output_folder, start_times, camera_ma
 
 # Different start times for each video
 def example_different_start_times():
-    video_folder = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Jovet/vids/'
-    output_folder = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Jovet/test/'
+    video_folder = './data/videos/'
+    output_folder = './data/frames/'
     
     # Map specific video files to their start times
     start_times = {
@@ -165,7 +158,7 @@ def example_different_start_times():
     
     # Optional: Custom camera mapping
     camera_mapping = {
-        'TLC_0007.mp4': 'Cam2'
+        'TLC_0007.mp4': 'Cam2',
     }
     
     # Days with additional 20h images

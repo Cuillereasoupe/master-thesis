@@ -2,15 +2,6 @@
 """
 Random Forest Classifier with Hyperparameter Tuning
 ===================================================
-Trains and optimizes Random Forest classifier for pixel-level algae detection
-using GridSearchCV for hyperparameter tuning and threshold optimization.
-
-Key functionality:
-- Extracts 14 color features from annotated pixels
-- Hyperparameter tuning via GridSearchCV (3-fold CV)
-- Decision threshold optimization for maximum F1-score
-- Comprehensive performance visualization and comparison
-- Model persistence with optimal settings
 
 Training process:
 1. Baseline Random Forest (100 estimators, fixed params)
@@ -19,19 +10,17 @@ Training process:
 4. Final evaluation on held-out test set
 
 Lines to modify:
-- Line 59: COCO_JSON path (COCO annotation file)
-- Line 60: IMAGES_DIR path (transformed images directory)
-- Line 61: OUTPUT_DIR path (where models/figures will be saved)
-- Line 158: max_pixels sampling (3000 default, adjust for memory/speed tradeoff)
-- Lines 226-232: Hyperparameter grid (modify search space as needed)
+- COCO_JSON path (COCO annotation file)
+- IMAGES_DIR path (transformed images directory)
+- OUTPUT_DIR path (where models/figures will be saved)
+- Line 147: max_pixels sampling (3000 default, adjust for memory/speed tradeoff)
+- Hyperparameter grid (modify search space as needed)
 
 Output:
 - PKL: random_forest_optimized.pkl (trained model with metadata)
 - PNG: Multiple figures (confusion matrices, ROC, PR curves, feature importance)
 - TXT: optimization_results.txt (detailed performance metrics)
 - CSV: Grid search results
-
-Expected performance: F1-score ≈ 0.78-0.82 (significantly better than thresholds)
 
 @author: jonas
 Created: Wed Oct 29 18:10:00 2025
@@ -56,9 +45,9 @@ import time
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/RF/output/'
+COCO_JSON = './data/result_coco.json'
+IMAGES_DIR = './data/transformed/'
+OUTPUT_DIR = './output/RF/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 print("="*70)
@@ -362,106 +351,6 @@ print(f"  • Total improvement: {total_improvement:+.4f} ({100*total_improvemen
 
 comparison.to_csv(os.path.join(OUTPUT_DIR, 'model_comparison.csv'), index=False)
 
-# ============================================================================
-# VISUALIZATIONS
-# ============================================================================
-
-print("\n9. Creating visualizations...")
-
-# Precision-Recall curve with optimal threshold marked
-fig, ax = plt.subplots(figsize=(10, 8))
-
-ax.plot(recall, precision, linewidth=2, color='darkblue', label='PR Curve')
-ax.scatter(recall[optimal_idx], precision[optimal_idx], s=200, c='red', 
-          marker='*', zorder=5, edgecolors='black', linewidths=2,
-          label=f'Optimal (Threshold={optimal_threshold:.3f}, F1={f1_scores[optimal_idx]:.3f})')
-ax.scatter(recall_score(y_test, y_pred_test), precision_score(y_test, y_pred_test),
-          s=150, c='orange', marker='o', zorder=5, edgecolors='black', linewidths=2,
-          label=f'Default (Threshold=0.5, F1={f1_score(y_test, y_pred_test):.3f})')
-
-ax.set_xlabel('Recall', fontsize=12, fontweight='bold')
-ax.set_ylabel('Precision', fontsize=12, fontweight='bold')
-ax.set_title('Precision-Recall Curve with Threshold Optimization', fontsize=14, fontweight='bold')
-ax.legend(loc='best', fontsize=11)
-ax.grid(alpha=0.3)
-ax.set_xlim([0, 1])
-ax.set_ylim([0, 1])
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'precision_recall_curve.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: precision_recall_curve.png")
-
-# F1-Score vs Threshold
-fig, ax = plt.subplots(figsize=(10, 6))
-
-valid_indices = np.where(thresholds <= 1.0)[0]
-ax.plot(thresholds[valid_indices], f1_scores[valid_indices], linewidth=2, color='darkblue')
-ax.axvline(optimal_threshold, color='red', linestyle='--', linewidth=2,
-          label=f'Optimal: {optimal_threshold:.3f} (F1={f1_scores[optimal_idx]:.3f})')
-ax.axvline(0.5, color='orange', linestyle='--', linewidth=2, alpha=0.7,
-          label=f'Default: 0.5')
-
-ax.set_xlabel('Decision Threshold', fontsize=12, fontweight='bold')
-ax.set_ylabel('F1-Score', fontsize=12, fontweight='bold')
-ax.set_title('F1-Score vs Decision Threshold', fontsize=14, fontweight='bold')
-ax.legend(fontsize=11)
-ax.grid(alpha=0.3)
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'threshold_optimization.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: threshold_optimization.png")
-
-# Confusion matrices comparison
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-for idx, (y_pred, title) in enumerate([
-    (baseline_pred, 'Baseline RF'),
-    (y_pred_test, 'Tuned RF (threshold=0.5)'),
-    (y_pred_optimized, f'Tuned RF (threshold={optimal_threshold:.3f})')
-]):
-    cm = confusion_matrix(y_test, y_pred)
-    
-    ax = axes[idx]
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                xticklabels=['Water', 'Algae'],
-                yticklabels=['Water', 'Algae'],
-                cbar_kws={'label': 'Count'})
-    
-    f1 = f1_score(y_test, y_pred)
-    ax.set_title(f'{title}\nF1={f1:.4f}', fontsize=12, fontweight='bold')
-    ax.set_ylabel('True Label', fontsize=11)
-    ax.set_xlabel('Predicted Label', fontsize=11)
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'confusion_matrices_comparison.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: confusion_matrices_comparison.png")
-
-# Feature importance
-importances = best_rf.feature_importances_
-indices = np.argsort(importances)[::-1]
-
-fig, ax = plt.subplots(figsize=(10, 8))
-
-colors = plt.cm.viridis(np.linspace(0, 1, len(feature_names)))
-bars = ax.barh(range(len(importances)), importances[indices], color=colors[indices])
-
-ax.set_yticks(range(len(importances)))
-ax.set_yticklabels([feature_names[i] for i in indices])
-ax.set_xlabel('Feature Importance', fontsize=12, fontweight='bold')
-ax.set_title('Feature Importance (Tuned Model)', fontsize=14, fontweight='bold')
-ax.grid(alpha=0.3, axis='x')
-
-for i, (idx, imp) in enumerate(zip(indices, importances[indices])):
-    ax.text(imp + 0.002, i, f'{imp:.4f}', va='center', fontsize=9)
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'feature_importance.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: feature_importance.png")
-
 # ROC Curve Analysis
 print("\n   Computing ROC curve...")
 fpr, tpr, roc_thresholds = roc_curve(y_test, y_pred_proba_test)
@@ -472,49 +361,9 @@ print(f"   ✓ Test AUC-ROC: {roc_auc:.4f}")
 # Find the point on ROC curve closest to our optimal threshold
 optimal_threshold_idx = np.argmin(np.abs(roc_thresholds - optimal_threshold))
 
-fig, ax = plt.subplots(figsize=(10, 8))
-
-# Plot ROC curve
-ax.plot(fpr, tpr, linewidth=2, color='darkblue', label=f'Random Forest (AUC={roc_auc:.3f})')
-
-# Plot random classifier line (diagonal)
-ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random Classifier (AUC=0.5)')
-
-# Mark optimal threshold point
-if optimal_threshold_idx < len(fpr):
-    ax.scatter(fpr[optimal_threshold_idx], tpr[optimal_threshold_idx],
-              s=200, c='red', marker='*', zorder=5, edgecolors='black', linewidths=2,
-              label=f'Optimal Threshold={optimal_threshold:.3f}\n(FPR={fpr[optimal_threshold_idx]:.3f}, TPR={tpr[optimal_threshold_idx]:.3f})')
-
 # Mark default threshold (0.5) point for comparison
 default_threshold_idx = np.argmin(np.abs(roc_thresholds - 0.5))
-if default_threshold_idx < len(fpr):
-    ax.scatter(fpr[default_threshold_idx], tpr[default_threshold_idx],
-              s=150, c='orange', marker='o', zorder=5, edgecolors='black', linewidths=2,
-              label=f'Default Threshold=0.5')
 
-ax.set_xlabel('False Positive Rate (1 - Specificity)', fontsize=12, fontweight='bold')
-ax.set_ylabel('True Positive Rate (Recall/Sensitivity)', fontsize=12, fontweight='bold')
-ax.set_title('ROC Curve - Random Forest Classifier', fontsize=14, fontweight='bold')
-ax.legend(loc='lower right', fontsize=10)
-ax.grid(alpha=0.3)
-ax.set_xlim([0, 1])
-ax.set_ylim([0, 1])
-
-# Add informative text box
-textstr = (
-    'AUC = Area Under Curve\n'
-    f'Perfect classifier: AUC = 1.0\n'
-    f'Random classifier: AUC = 0.5\n'
-    f'Our model: AUC = {roc_auc:.3f}'
-)
-ax.text(0.55, 0.35, textstr, fontsize=10, verticalalignment='top',
-       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'roc_curve.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("   ✓ Saved: roc_curve.png")
 
 # ============================================================================
 # SAVE FINAL MODEL
