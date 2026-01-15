@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-CNN Algae Detection with PROPER IMAGE-LEVEL SPLIT
+CNN Algae Detection V4
 
 Author: jonas
 Date: January 2026
 
-FIXES:
-1. Stratified temporal sampling - training images evenly distributed across timeline
-2. Early stopping - stops when validation F1 doesn't improve for N epochs
-3. Prevents overfitting while still selecting best model
+1. Stratified temporal sampling
+2. Early stopping
 """
 
 import json
@@ -43,11 +41,11 @@ except ImportError:
     exit(1)
 
 # ============================================================================
-# CONFIGURATION
+# CONFIGURATION: Update paths if needed
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/CNN/output_toremove/'
+COCO_JSON = './data/annotations.json'
+IMAGES_DIR = './data/images/'
+OUTPUT_DIR = './output/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # CNN hyperparameters
@@ -86,8 +84,6 @@ print(f"  • Random seed: {RANDOM_SEED}")
 def parse_filename(filename):
     """
     Parse filename to extract clean name and timestamp
-    JSON has prefix: "e0908920-Cam3-07-21-12-00-00.png"
-    Actual files don't: "Cam3-07-21-12-00-00.png"
     Returns: (clean_filename_without_prefix, datetime_object)
     """
     clean_name = filename
@@ -318,7 +314,7 @@ def extract_patches_from_images(image_filenames, coco_data, images_dict, categor
         
         img = cv2.imread(image_path)
         if img is None:
-            print(f"   ⚠ Could not load: {filename}")
+            print(f"Could not load: {filename}")
             continue
         
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -431,7 +427,6 @@ print("\n" + "="*70)
 print("STEP 2: SPLITTING IMAGES (STRATIFIED TEMPORAL)")
 print("="*70)
 print("   ⚠️  Training images evenly distributed across timeline")
-print("   ⚠️  This prevents training only on early/late season images")
 
 # Get all unique image filenames (normalized)
 all_filenames = []
@@ -515,9 +510,9 @@ print(f"   - Train/Test overlap: {len(overlap_train_test)} images (should be 0)"
 print(f"   - Val/Test overlap:   {len(overlap_val_test)} images (should be 0)")
 
 if len(overlap_train_val) + len(overlap_train_test) + len(overlap_val_test) == 0:
-    print(f"   ✅ NO DATA LEAKAGE CONFIRMED! All image sets are disjoint.")
+    print(f"NO DATA LEAKAGE CONFIRMED! All image sets are disjoint.")
 else:
-    print(f"   ❌ ERROR: Image overlap detected!")
+    print(f"ERROR: Image overlap detected!")
     exit(1)
 
 # ============================================================================
@@ -586,7 +581,6 @@ print("\n" + "="*70)
 print("STEP 6: TRAINING CNN WITH EARLY STOPPING")
 print("="*70)
 print(f"   Training for up to {MAX_EPOCHS} epochs (early stopping if no improvement for {EARLY_STOPPING_PATIENCE} epochs)...")
-print(f"   ⚠️  Best model selected on VALIDATION set (not test!)\n")
 
 train_losses = []
 train_accs = []
@@ -688,7 +682,7 @@ for epoch in range(MAX_EPOCHS):
     
     # Check early stopping
     if early_stopping(val_f1, epoch + 1):
-        print(f"\n   🛑 EARLY STOPPING triggered at epoch {epoch + 1}")
+        print(f"\n   EARLY STOPPING triggered at epoch {epoch + 1}")
         print(f"   Best validation F1 was {best_val_f1:.4f} at epoch {best_epoch}")
         break
 
@@ -952,14 +946,7 @@ print(f"  • Split strategy: Stratified temporal")
 print(f"\nTest Images (Completely Unseen):")
 for img in test_files:
     print(f"  - {img}")
-
-print(f"\n✅ NO DATA LEAKAGE CONFIRMED")
-print(f"   Train/Val/Test used completely separate images")
-print(f"✅ TEMPORAL STRATIFICATION APPLIED")
-print(f"   Training images evenly distributed across timeline")
-print(f"✅ EARLY STOPPING APPLIED")
-print(f"   Training stopped when validation F1 plateaued")
-
+    
 print("\n" + "="*70)
 print("All outputs saved to:", OUTPUT_DIR)
 print("="*70)

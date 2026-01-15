@@ -1,20 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-CNN Learning Curve Analysis - Optimal Dataset Size (FIXED VERSION)
-Determines how many labeled images are needed for robust CNN performance
+CNN Learning Curve Analysis - Optimal Dataset Size
 
-CRITICAL ARCHITECTURE NOTE:
-- JSON file (result_coco.json) has filenames WITH prefix: "e9cc6a5d-Cam4-08-25-12-00-00.png"
-- Actual image files on disk have NO prefix: "Cam4-08-25-12-00-00.png"
-- This script removes prefix from JSON names to match disk files
-
-FIXES:
-1. Temporal distribution: Images sorted by timestamp for realistic evaluation
-2. Data leakage prevention: Clear train/test split at image level
-3. Consistent filename parsing (removes prefix to match disk files)
-4. Better reporting on temporal coverage
-
-Author: jonas (fixed by Claude)
+Author: jonas
 Date: November 2025
 """
 
@@ -45,9 +33,9 @@ except ImportError:
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/CNN/output_learning_curve/'
+COCO_JSON = './data/result_coco.json'
+IMAGES_DIR = './data/images/'
+OUTPUT_DIR = './output/learning_curve/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # CNN hyperparameters
@@ -636,25 +624,10 @@ print("\n" + "="*70)
 print("CONCLUSION")
 print("="*70)
 
-print(f"\nTemporal Strategy: {TEMPORAL_STRATEGY}")
-if TEMPORAL_STRATEGY == 'chronological':
-    print("   (Training on early data, testing on later data - tests future prediction)")
-elif TEMPORAL_STRATEGY == 'stratified_temporal':
-    print("   (Training on images evenly distributed across timeline - RECOMMENDED)")
-    print("   (Testing on all remaining images - measures general performance)")
-elif TEMPORAL_STRATEGY == 'stratified':
-    print("   (Balanced temporal distribution)")
-else:
-    print("   (Random split - not temporally aware)")
-
 if abs(last_imp) < 0.01:
     print(f"\n✅ Performance PLATEAUED (last improvement: {last_imp:+.4f})")
-    print(f"   → 23 images is SUFFICIENT")
-    print(f"   → Additional labeling provides <1% benefit")
 else:
     print(f"\n⚠️  Still improving (last: {last_imp:+.4f})")
-    print(f"   → Consider labeling more images")
-    print(f"   → Target improvement suggests labeling {5 if abs(last_imp) > 0.03 else 3} more images")
 
 print(f"\nFinal Performance ({df.iloc[-1]['n_train_images']} training images):")
 print(f"   F1:        {df.iloc[-1]['mean_f1']:.4f} ± {df.iloc[-1]['std_f1']:.4f}")
@@ -667,10 +640,6 @@ print(f"\nComputation Time: {total_time/60:.1f} minutes")
 # ============================================================================
 # VISUALIZATION
 # ============================================================================
-
-print("\n" + "="*70)
-print("CREATING VISUALIZATIONS")
-print("="*70)
 
 # Main learning curve
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
@@ -719,109 +688,8 @@ ax2.set_ylim([0.7, 1.0])
 plt.tight_layout()
 plt.savefig(os.path.join(OUTPUT_DIR, 'learning_curve_fixed.png'), dpi=300, bbox_inches='tight')
 plt.close()
-print("✓ Saved: learning_curve_fixed.png")
 
-# Temporal distribution plot (if applicable)
-if temporal_stats:
-    fig, ax = plt.subplots(figsize=(14, 7))
-    
-    df_temp = pd.DataFrame(temporal_stats)
-    
-    if TEMPORAL_STRATEGY == 'stratified_temporal':
-        # For stratified_temporal, show train images as individual points across timeline
-        for n_train in df_temp['n_train'].unique():
-            subset = df_temp[df_temp['n_train'] == n_train]
-            
-            for idx, row in subset.iterrows():
-                # Get all train images for this repeat (we'll need to reconstruct this)
-                # For visualization, just show the range covered
-                y_pos = row['n_train'] + (idx % 3) * 0.15 - 0.15  # Slight offset for repeats
-                
-                # Plot train coverage as full span with markers
-                ax.plot([row['train_date_min'].toordinal(), row['train_date_max'].toordinal()],
-                       [y_pos, y_pos], 'o-', linewidth=2, markersize=6, alpha=0.7, 
-                       color='blue', label='Train (distributed)' if idx == 0 else '')
-                
-                # Plot test coverage
-                ax.barh(y_pos, 
-                       (row['test_date_max'] - row['test_date_min']).days,
-                       left=row['test_date_min'].toordinal(),
-                       height=0.12, alpha=0.4, color='red', 
-                       label='Test (all remaining)' if idx == 0 else '')
-        
-        ax.set_title(f'Temporal Distribution: {TEMPORAL_STRATEGY.replace("_", " ").title()}\n(Blue points = training images evenly distributed)', 
-                    fontsize=13, fontweight='bold')
-    
-    elif TEMPORAL_STRATEGY == 'chronological':
-        # Original chronological visualization
-        for n_train in df_temp['n_train'].unique():
-            subset = df_temp[df_temp['n_train'] == n_train]
-            
-            for _, row in subset.iterrows():
-                # Plot train period
-                ax.barh(row['n_train'], 
-                       (row['train_date_max'] - row['train_date_min']).days,
-                       left=row['train_date_min'].toordinal(),
-                       height=0.3, alpha=0.6, color='blue', label='Train' if _ == 0 else '')
-                
-                # Plot test period
-                ax.barh(row['n_train'], 
-                       (row['test_date_max'] - row['test_date_min']).days,
-                       left=row['test_date_min'].toordinal(),
-                       height=0.3, alpha=0.6, color='red', label='Test' if _ == 0 else '')
-        
-        ax.set_title('Temporal Distribution: Chronological Split\n(Train on early, test on late)', 
-                    fontsize=13, fontweight='bold')
-    else:
-        # Generic visualization for other strategies
-        for n_train in df_temp['n_train'].unique():
-            subset = df_temp[df_temp['n_train'] == n_train]
-            
-            for _, row in subset.iterrows():
-                ax.barh(row['n_train'], 
-                       (row['train_date_max'] - row['train_date_min']).days,
-                       left=row['train_date_min'].toordinal(),
-                       height=0.25, alpha=0.6, color='blue', label='Train' if _ == 0 else '')
-                
-                ax.barh(row['n_train'], 
-                       (row['test_date_max'] - row['test_date_min']).days,
-                       left=row['test_date_min'].toordinal(),
-                       height=0.25, alpha=0.6, color='red', label='Test' if _ == 0 else '')
-        
-        ax.set_title(f'Temporal Distribution: {TEMPORAL_STRATEGY.title()}', 
-                    fontsize=13, fontweight='bold')
-    
-    ax.set_xlabel('Date', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Number of Training Images', fontsize=12, fontweight='bold')
-    
-    # Format x-axis as dates
-    from matplotlib.dates import DateFormatter, DayLocator
-    ax.xaxis_date()
-    ax.xaxis.set_major_formatter(DateFormatter('%m-%d'))
-    
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax.legend(by_label.values(), by_label.keys(), fontsize=10)
-    ax.grid(alpha=0.3, axis='x')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'temporal_distribution.png'), dpi=300, bbox_inches='tight')
-    plt.close()
-    print("✓ Saved: temporal_distribution.png")
 
 print("\n" + "="*70)
 print(f"All outputs saved to: {OUTPUT_DIR}")
-print("="*70)
-print("\nIMPORTANT NOTES:")
-print("  • Train/test split respects temporal structure")
-print("  • No data leakage between images")
-if TEMPORAL_STRATEGY == 'chronological':
-    print("  • Model trained on EARLY data, tested on LATER data")
-    print("  • Results show ability to predict future time periods")
-elif TEMPORAL_STRATEGY == 'stratified_temporal':
-    print("  • Training images evenly distributed across entire timeline")
-    print("  • Test images fill gaps between training images")
-    print("  • Results show general performance across all time periods")
-else:
-    print("  • Results show realistic generalization")
 print("="*70)

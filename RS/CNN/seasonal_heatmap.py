@@ -4,11 +4,8 @@ Create Seasonal Algae Detection Heatmap
 =======================================
 Generates a publication-ready heatmap figure from aggregated CNN predictions.
 
-Usage:
-    python create_seasonal_heatmap.py
-
 Input files (expected in same directory or update paths below):
-    - aggregated_frequency_map_corrected.npy  (corrected frequency data)
+    - aggregated_frequency_map_corrected.npy  (frequency data)
     - aggregated_total_map.npy                (original lake mask)
 
 Output:
@@ -27,7 +24,7 @@ import os
 # ============================================================================
 
 # Input files
-FREQ_MAP_PATH = 'aggregated_frequency_map_corrected.npy'  # Corrected frequency data
+FREQ_MAP_PATH = 'aggregated_frequency_map.npy'            # Frequency data
 LAKE_MASK_PATH = 'aggregated_total_map.npy'               # Original total map for lake boundary
 
 # Output
@@ -41,7 +38,7 @@ COLORMAP = 'viridis'       # Options: 'viridis', 'plasma', 'YlOrRd', 'RdYlGn_r'
 VMIN, VMAX = 0, 1          # Colorbar range
 
 # Title (set to None for no title)
-TITLE = 'Seasonal Algae Detection Frequency\nLac de la Muzelle (n = 42)'
+TITLE = ''
 
 # ============================================================================
 # MAIN SCRIPT

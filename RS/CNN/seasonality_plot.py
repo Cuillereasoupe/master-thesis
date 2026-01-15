@@ -5,9 +5,6 @@ Seasonal Algae Coverage Time Series
 Creates a publication-ready time series plot showing algae coverage evolution
 over the monitoring season.
 
-Usage:
-    python create_seasonality_plot.py
-
 Input files (expected in same directory or update paths below):
     - annotated_results_corrected.csv
     - unannotated_results_corrected.csv
@@ -41,7 +38,7 @@ PIXEL_SIZE_M = 0.21             # 21 cm ground resolution
 PIXEL_AREA_M2 = PIXEL_SIZE_M ** 2  # 0.0441 m² per pixel
 
 LAKE_PIXELS = 762890            # Total lake pixels from image
-YEAR = 2024                     # Year of monitoring (for date parsing)
+YEAR = 2025                     # Year of monitoring (for date parsing)
 
 # Derived lake area
 LAKE_AREA_M2 = LAKE_PIXELS * PIXEL_AREA_M2
@@ -205,7 +202,7 @@ def create_seasonality_plot():
     ax1.set_axisbelow(True)
     
     # Title
-    ax1.set_title('Seasonal Evolution of Algae Coverage\nLac de la Muzelle (2024)', 
+    ax1.set_title('Seasonal Evolution of Algae Coverage\nLac de la Muzelle (2025)', 
                   fontsize=13, fontweight='medium', pad=10)
     
     plt.tight_layout()
@@ -225,10 +222,6 @@ def create_seasonality_plot():
     df_export['datetime'] = df_export['datetime'].dt.strftime('%Y-%m-%d %H:%M')
     df_export.to_csv(output_csv, index=False)
     print(f"✓ Saved: {output_csv}")
-    
-    print("\n" + "="*60)
-    print("NOTE: Area calculated using 21 cm ground resolution from thesis.")
-    print("="*60)
 
 if __name__ == "__main__":
     create_seasonality_plot()

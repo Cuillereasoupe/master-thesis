@@ -6,13 +6,6 @@ Created on Wed Nov  5 10:20:01 2025
 
 CNN Full-Image Application for Thesis
 Applies trained 32×32 CNN to complete images for algae detection
-
-Key Features:
-- Sliding window with overlap for smooth predictions
-- Both pixel-level and region-level evaluation
-- Timing information for computational cost analysis
-- Handles all images (annotated + unannotated)
-- Generates thesis-ready visualizations
 """
 
 import json
@@ -32,13 +25,13 @@ import pandas as pd
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/CNN/full_image_predictions/'
+COCO_JSON = './data/result_coco.json'
+IMAGES_DIR = './data/images/'
+OUTPUT_DIR = './output/predictions/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # CNN model path (from learning curve training)
-CNN_MODEL_PATH = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/CNN/output/best_model.pth'
+CNN_MODEL_PATH = './output/best_model.pth'
 
 # CRITICAL: Must match training configuration
 PATCH_SIZE = 32  # From learning curve script

@@ -7,10 +7,7 @@ Created on Tue Nov  4 21:09:36 2025
 CNN Algae Detection with 5-Fold Cross-Validation
 Provides robust performance estimates with confidence intervals
 
-This script performs 5-fold cross-validation at the IMAGE level to:
-1. Use all images for testing (each image tested exactly once)
-2. Provide confidence intervals for CNN performance
-3. Validate that results are robust across different train/test splits
+This script performs 5-fold cross-validation at the image level
 """
 
 import json
@@ -43,9 +40,9 @@ except ImportError:
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-COCO_JSON = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/result_coco.json'
-IMAGES_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/img/2025/Muzelle/transformed/'
-OUTPUT_DIR = 'C:/Users/jonas/Documents/uni/TM/RS/scripts/CNN/output_kfold/'
+COCO_JSON = './data/result_coco.json'
+IMAGES_DIR = './data/images/'
+OUTPUT_DIR = './output/kfold/'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # CNN hyperparameters
@@ -526,149 +523,6 @@ with open(os.path.join(OUTPUT_DIR, 'kfold_statistics.txt'), 'w') as f:
     f.write(f"\n\nTotal time: {total_time/60:.1f} minutes\n")
 
 print(f"✓ Saved: kfold_statistics.txt")
-
-# ============================================================================
-# VISUALIZATIONS
-# ============================================================================
-
-print("\n" + "="*70)
-print("CREATING VISUALIZATIONS")
-print("="*70)
-
-# Figure 1: Box plot of F1-scores
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
-ax = axes[0]
-bp = ax.boxplot([fold_df['f1_optimized'].values], 
-                 labels=['CNN\n5-Fold CV'],
-                 patch_artist=True,
-                 widths=0.6)
-bp['boxes'][0].set_facecolor('lightblue')
-bp['boxes'][0].set_edgecolor('darkblue')
-bp['boxes'][0].set_linewidth(2)
-
-# Add individual points
-for i, val in enumerate(fold_df['f1_optimized'].values):
-    ax.scatter(1, val, s=100, c='darkblue', zorder=10, alpha=0.6)
-    ax.text(1.15, val, f'Fold {i+1}', fontsize=9, va='center')
-
-# Add comparison lines
-ax.axhline(0.793, color='red', linestyle='--', linewidth=2, alpha=0.7, label='XGBoost (0.793)')
-ax.axhline(0.806, color='orange', linestyle='--', linewidth=2, alpha=0.7, label='RF (0.806)')
-ax.axhline(mean_f1, color='green', linestyle='-', linewidth=2, alpha=0.7, label=f'CNN Mean ({mean_f1:.3f})')
-
-ax.set_ylabel('F1-Score', fontsize=12, fontweight='bold')
-ax.set_title(f'5-Fold Cross-Validation Results\nF1 = {mean_f1:.4f} ± {std_f1:.4f}', 
-             fontsize=13, fontweight='bold')
-ax.legend(fontsize=10)
-ax.set_ylim([0.7, 1.0])
-ax.grid(alpha=0.3, axis='y')
-
-# Figure 2: All metrics comparison
-ax = axes[1]
-metrics = ['Precision', 'Recall', 'F1-Score', 'AUC']
-means = [mean_precision, mean_recall, mean_f1, mean_auc]
-stds = [fold_df['precision'].std(), fold_df['recall'].std(), std_f1, fold_df['auc'].std()]
-
-x_pos = np.arange(len(metrics))
-bars = ax.bar(x_pos, means, yerr=stds, capsize=10, alpha=0.7, 
-              color=['#3498db', '#2ecc71', '#e74c3c', '#f39c12'],
-              edgecolor='black', linewidth=1.5)
-
-ax.set_xticks(x_pos)
-ax.set_xticklabels(metrics, fontsize=11)
-ax.set_ylabel('Score', fontsize=12, fontweight='bold')
-ax.set_title('Mean Performance Metrics\n(Error bars show std dev)', 
-             fontsize=13, fontweight='bold')
-ax.set_ylim([0, 1.1])
-ax.grid(alpha=0.3, axis='y')
-
-# Add value labels
-for i, (mean, std) in enumerate(zip(means, stds)):
-    ax.text(i, mean + std + 0.03, f'{mean:.3f}\n±{std:.3f}', 
-            ha='center', va='bottom', fontsize=9, fontweight='bold')
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'kfold_summary.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("✓ Saved: kfold_summary.png")
-
-# Figure 2: Detailed per-fold comparison
-fig, ax = plt.subplots(figsize=(12, 6))
-
-x = np.arange(N_FOLDS)
-width = 0.2
-
-bars1 = ax.bar(x - 1.5*width, fold_df['precision'], width, label='Precision', color='#3498db', alpha=0.8)
-bars2 = ax.bar(x - 0.5*width, fold_df['recall'], width, label='Recall', color='#2ecc71', alpha=0.8)
-bars3 = ax.bar(x + 0.5*width, fold_df['f1_optimized'], width, label='F1-Score', color='#e74c3c', alpha=0.8)
-bars4 = ax.bar(x + 1.5*width, fold_df['auc'], width, label='AUC', color='#f39c12', alpha=0.8)
-
-ax.set_xlabel('Fold', fontsize=12, fontweight='bold')
-ax.set_ylabel('Score', fontsize=12, fontweight='bold')
-ax.set_title('Performance Metrics Across All Folds', fontsize=14, fontweight='bold')
-ax.set_xticks(x)
-ax.set_xticklabels([f'Fold {i+1}' for i in range(N_FOLDS)])
-ax.legend(fontsize=11)
-ax.set_ylim([0.7, 1.0])
-ax.grid(alpha=0.3, axis='y')
-
-# Add horizontal line for mean F1
-ax.axhline(mean_f1, color='red', linestyle='--', linewidth=1, alpha=0.5, label=f'Mean F1 ({mean_f1:.3f})')
-
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'kfold_per_fold_comparison.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("✓ Saved: kfold_per_fold_comparison.png")
-
-# Figure 3: Confusion matrices for all folds
-fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-axes = axes.ravel()
-
-for fold_idx in range(N_FOLDS):
-    ax = axes[fold_idx]
-    cm = np.array(fold_results[fold_idx]['confusion_matrix'])
-    
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                xticklabels=['Water', 'Algae'],
-                yticklabels=['Water', 'Algae'],
-                cbar=False)
-    
-    f1 = fold_results[fold_idx]['f1_optimized']
-    n_test = fold_results[fold_idx]['n_test_images']
-    
-    ax.set_title(f'Fold {fold_idx+1} (n={n_test} images)\nF1={f1:.4f}', 
-                fontsize=11, fontweight='bold')
-    ax.set_ylabel('True Label', fontsize=10)
-    ax.set_xlabel('Predicted Label', fontsize=10)
-
-# Hide last subplot if N_FOLDS is odd
-if N_FOLDS % 2 == 1:
-    axes[-1].axis('off')
-
-plt.suptitle(f'Confusion Matrices - {N_FOLDS}-Fold Cross-Validation', 
-            fontsize=14, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, 'kfold_confusion_matrices.png'), dpi=300, bbox_inches='tight')
-plt.close()
-print("✓ Saved: kfold_confusion_matrices.png")
-
-print("\n" + "="*70)
-print("K-FOLD CROSS-VALIDATION ANALYSIS COMPLETE")
-print("="*70)
-
-print(f"\n📊 FINAL RESULTS:")
-print(f"   CNN Performance: F1 = {mean_f1:.4f} ± {std_f1:.4f}")
-print(f"   95% Confidence Interval: [{mean_f1 - ci_95_f1:.4f}, {mean_f1 + ci_95_f1:.4f}]")
-print(f"\n   Comparison with traditional ML:")
-print(f"   • XGBoost:      F1 = 0.793")
-print(f"   • Random Forest: F1 = 0.806")
-print(f"   • CNN (5-fold):  F1 = {mean_f1:.4f} (+{mean_f1 - 0.806:.4f} vs RF)")
-print(f"\n   Improvement: {100*(mean_f1 - 0.806)/0.806:.1f}% better than Random Forest")
-
-print(f"\n✅ All {len(all_filenames)} images tested exactly once")
-print(f"✅ Results are robust across all folds (std = {std_f1:.4f})")
-print(f"✅ Publication-ready with confidence intervals")
 
 print("\n" + "="*70)
 print(f"All outputs saved to: {OUTPUT_DIR}")
