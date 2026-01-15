@@ -4,7 +4,7 @@ Run scripts in order:
 ```bash
 # 1. Preprocessing
 python preprocessing/vid2frames.py
-python preprocessing/manual-sorting.py
+python preprocessing/manual_sorting.py
 python preprocessing/water_detection-tweaking.py
 python preprocessing/img_transformation.py
 
@@ -12,11 +12,11 @@ python preprocessing/img_transformation.py
 python simplethreshold/pixel_classification2-COCO.py
 
 # 3. Machine Learning
-python RF/RF7-COCO.py
+python RF/RF7.py
 python XGBoost/XGBoost1.py
 
-# 4. Deep Learning (Best Method)
-python CNN/CNN3.py
+# 4. Deep Learning
+python CNN/CNN4.py
 python CNN/CNN-kfold.py
 ```
 
